@@ -1,7 +1,10 @@
 #open pipe
 socat -d -d pty,raw,echo=0 pty,raw,echo=0
+#or
+socat PTY,link=/tmp/ttyS0,raw,echo=0 PTY,link=/tmp/ttyS1,raw,echo=0
 
-this will give two pts connected by a pipe
+#this will give two pts connected by a pipe
+#the second example names the ports as requested
 
 modify gps.py to set initial position and speed
 
