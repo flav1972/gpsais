@@ -2,7 +2,11 @@ import math
 from datetime import datetime
 
 def to_angle(deg, minute):
-  return deg + minute/60.0 if deg >= 0.0 else deg - minute/60.0
+  deg = float(deg)
+  minute = float(minute)
+  if (deg >= 0.0):
+    return (deg + minute/60.0)
+  return (deg - minute/60.0)
 
 def format_lat(deg):
   return "{:02d}{:06.3f}".format(int(deg), deg%1*60) 
@@ -10,32 +14,31 @@ def format_lat(deg):
 def format_lon(deg):
   return "{:03d}{:06.3f}".format(int(deg), deg%1*60) 
 
+#print format_lon(to_angle(45, 0.7))
+#print format_lon(to_angle(5, 30.7))
+#print format_lon(to_angle(45, 30.7))
+#print format_lon(to_angle(145, 58.332))
+
 class Target:
-  def __init__(self, mmsi, lat, lon, course, speed, heading):
+  def __init__(self, lat, lon, course, speed):
     """
     Construct a new 'Target' object.
 
     Parameters
     ----------
-    mmsi: string
-      mmsi
     lat: float
       latitude in degres. Positive north
     lon: float
       longitude in degres. Positive east
     course: float
       course over ground in degres, used for position update : 0.0 = north, 90.0 = east, 180.0 = south, 270.0 = west
-    heading: float
-      informational only
     speed: float
       speed in knots
     """
-    self.mmsi = mmsi
     self.lat = lat
     self.lon = lon
     self.course = course
     self.speed = speed
-    self.heading = heading
     self.datetime = datetime.now()
   def update(self):
     """
@@ -57,16 +60,3 @@ class Target:
     self.lon = lon_b
     self.datetime = new_time    
 
-def to_angle(deg, minute):
-  return deg + minute/60
-
-def format_lat(deg):
-  return "{:02d}{:06.3f}".format(int(deg), deg%1*60) 
-
-def format_lon(deg):
-  return "{:03d}{:06.3f}".format(int(deg), deg%1*60) 
-
-#print format_lon(to_angle(45, 0.7))
-#print format_lon(to_angle(5, 30.7))
-#print format_lon(to_angle(45, 30.7))
-#print format_lon(to_angle(145, 58.332))

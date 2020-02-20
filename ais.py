@@ -126,7 +126,25 @@ def nmeaEncode(LineDict):
     Ignore = {'"'}
     if LineDict["TYPE"] == "1":
         # This is a Class A position update message
-        # TYPE="1" MMSI="24416300" STATUS="5" SPEED=5.0 LON=121.745400 LAT=25.135410 COURSE=113.0 HEADING=30.0 TIMESTAMP="2015-11-19T05:19:47"
+        # TYPE:"1" MMSI:"24416300" STATUS:"5" SPEED:5.0 LON:121.745400 LAT:25.135410 COURSE:113.0 HEADING:30.0 TIMESTAMP:"2015-11-19T05:19:47"
+        # STATUS see: https://www.navcen.uscg.gov/?pageName=AISMessagesA
+        # STATUS
+ 	#    0 = under way using engine, 
+        #    1 = at anchor,
+        #    2 = not under command
+        #    3 = restricted maneuverability
+        #    4 = constrained by her draught
+        #    5 = moored
+        #    6 = aground
+        #    7 = engaged in fishing
+        #    8 = under way sailing
+        #    9 = reserved for future amendment of navigational status for ships carrying DG, HS, or MP, or IMO hazard or pollutant category C, high speed craft (HSC)
+        #    10 = reserved for future amendment of navigational status for ships carrying dangerous goods (DG), harmful substances (HS) or marine pollutants (MP), or IMO hazard or pollutant category A, wing in ground (WIG)
+        #    11 = power-driven vessel towing astern (regional use)
+        #    12 = power-driven vessel pushing ahead or towing alongside (regional use);
+        #    13 = reserved for future use,
+        #    14 = AIS-SART (active), MOB-AIS, EPIRB-AIS
+        #    15 = undefined = default (also used by AIS-SART, MOB-AIS and EPIRB-AIS under test)
         cog = LineDict["COURSE"]
         mmsi = Str2Int(LineDict["MMSI"],Ignore)
         lat = LineDict["LAT"]
@@ -175,7 +193,7 @@ def nmeaEncode(LineDict):
 
     if LineDict["TYPE"] == "18":
         # This is a Class B position update message
-        # TYPE = "18" MMSI="367415980" SPEED="5" LON="121.745400" LAT="24.135000" COURSE="113" HEADING="30" CHANNEL="B" TIMESTAMP="2015-11-19T05:19:48"
+        # TYPE : "18" MMSI:"367415980" SPEED:"5" LON:"121.745400" LAT:"24.135000" COURSE:"113" HEADING:"30" CHANNEL:"B" TIMESTAMP:"2015-11-19T05:19:48"
         MessageID = Int2BString(Str2Int(LineDict["TYPE"],Ignore),6)
         RepeatIndicator = Int2BString(0,2)
         MMSI = Int2BString(Str2Int(LineDict["MMSI"],Ignore),30)
@@ -292,6 +310,27 @@ def parse_line(f):
             key = ""
     return LineDict
 
+
+class AISTarget(Target):
+    def __init__(self, mmsi, lat, lon, course, speed, heading):
+        self.mmsi = mmsi
+        self.heading = heading
+        Target.__init__(self, lat, lon, course, speed)
+
+    def nmeaEncode(self):
+        self.update()
+        LineDict = { "TYPE":"1",
+                         "MMSI":self.mmsi,
+                         "STATUS":"0",
+                         "SPEED": self.speed,
+                         "LON": self.lon,
+                         "LAT": self.lat,
+                         "COURSE": self.course,
+                         "HEADING": self.heading,
+                         "TIMESTAMP":"2015-11-19T05:19:47" }
+        return nmeaEncode(LineDict)
+
+ 
 def udp(UDP_IP, UDP_PORT, delay):
     print(['UDP target IP:', UDP_IP])
     print(['UDP target port:', str(UDP_PORT)])
@@ -299,44 +338,30 @@ def udp(UDP_IP, UDP_PORT, delay):
                          socket.SOCK_DGRAM) # UDP
     print("Type Ctrl-C to exit...")
 
-    targets = [ Target("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
-                Target("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
-
-    print to_angle(-5, 13.9)
+    targets = [ AISTarget("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
+                AISTarget("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
 
     while True :
-        try:
-            for t in targets:
-              t.update()
-              print t.lon
-              LineDict = { "TYPE":"1",
-                         "MMSI":t.mmsi,
-                         "STATUS":"0",
-                         "SPEED": t.speed,
-                         "LON": t.lon,
-                         "LAT": t.lat,
-                         "COURSE": t.course,
-                         "HEADING": t.heading,
-                         "TIMESTAMP":"2015-11-19T05:19:47" }
-              if LineDict:
-                  mess = nmeaEncode(LineDict)
-	          print(mess)
-                  sock.sendto(mess,(UDP_IP, UDP_PORT))
-                  time.sleep(delay)
-        except KeyboardInterrupt:
-            sock.close()
-            return True
+        for t in targets:
+            mess = t.nmeaEncode()
+	    print(mess)
+            try:
+                sock.sendto(mess,(UDP_IP, UDP_PORT))
+                time.sleep(delay)
+            except KeyboardInterrupt:
+                sock.close()
+                return True
 
-        except EOFError:
-            sock.close()
-            return True
+            except EOFError:
+                sock.close()
+                return True
 
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            sock.close()
-            return False
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                sock.close()
+                return False
 
 def tcp(TCP_IP, TCP_PORT, delay):
     if TCP_IP == None:
