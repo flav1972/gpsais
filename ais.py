@@ -330,97 +330,72 @@ class AISTarget(Target):
                          "TIMESTAMP":"2015-11-19T05:19:47" }
         return nmeaEncode(LineDict)
 
+class connection:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+
+class udp(connection):
+    def __init__(self, host, port):
+        connection.__init__(self, host, port)
+        print(['UDP target IP:', self.host])
+        print(['UDP target port:', str(self.port)])
+        self.sock = socket.socket(socket.AF_INET, # Internet
+                             socket.SOCK_DGRAM) # UDP
+    def send(self, mess):
+        self.sock.sendto(mess,(self.host, self.port))
+
+    def close(self):
+        print("Closing UDP socket")
+        self.sock.close()
+
  
-def udp(UDP_IP, UDP_PORT, delay):
-    print(['UDP target IP:', UDP_IP])
-    print(['UDP target port:', str(UDP_PORT)])
-    sock = socket.socket(socket.AF_INET, # Internet
-                         socket.SOCK_DGRAM) # UDP
-    print("Type Ctrl-C to exit...")
-
-    targets = [ AISTarget("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
-                AISTarget("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
-
-    while True :
-        for t in targets:
-            mess = t.nmeaEncode()
-	    print(mess)
-            try:
-                sock.sendto(mess,(UDP_IP, UDP_PORT))
-                time.sleep(delay)
-            except KeyboardInterrupt:
-                sock.close()
-                return True
-
-            except EOFError:
-                sock.close()
-                return True
-
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)
-                sock.close()
-                return False
-
-def tcp(TCP_IP, TCP_PORT, delay):
-    if TCP_IP == None:
-        TCP_IP = socket.gethostname()
-
-    server_address = (TCP_IP, TCP_PORT)
-
-    print(['TCP target IP:%s:%d', server_address])
-    print(['TCP target port:', str(TCP_PORT)])
-    lsock = socket.socket(socket.AF_INET, # Internet
-                          socket.SOCK_STREAM) # TCP
-    lsock.settimeout(tcpConnectTimeout)
-
-    try:
-        lsock.bind(server_address)
-        lsock.listen(1)
-        print(["Server is waiting up to " + repr(tcpConnectTimeout) + "S for a connection at:", server_address]);
-        conn, addr = lsock.accept()
-
-    except socket.error as msg:
-        print(msg)
-        lsock.close()
-        return False
-
-    print(['Connected via TCP to:', addr]);
-    print("Type Ctrl-C to exit...")
-    while True:
+class tcp(connection):
+    def __init__(self, host, port):
+        if host == None:
+            host = socket.gethostname()
+    
+        connection.__init__(self, host, port)
+        
+        server_address = (self.host, self.port)
+    
+        print(['TCP server IP', self.host])
+        print(['TCP server port:', str(self.port)])
+        self.lsock = socket.socket(socket.AF_INET, # Internet
+                              socket.SOCK_STREAM) # TCP
+        self.lsock.settimeout(tcpConnectTimeout)
+    
         try:
-            LineDict = { "TYPE":"1",
-                         "MMSI":"24416300",
-                         "STATUS":"5",
-                         "SPEED":"5",
-                         "LON":"-005.745400",
-                         "LAT":"25.135410",
-                         "COURSE":"113",
-                         "HEADING":"30",
-                         "TIMESTAMP":"2015-11-19T05:19:47" }
-            if LineDict:
-                mess = nmeaEncode(LineDict)
-                print(mess)
-                conn.send(mess)
-                time.sleep(delay)
+            self.lsock.bind(server_address)
+            self.lsock.listen(1)
+            print(["Server is waiting up to " + repr(tcpConnectTimeout) + "S for a connection at:", server_address]);
+            (self.conn, self.addr) = self.lsock.accept()
+    
+        except socket.error as msg:
+            print(msg)
+            self.lsock.close()
+            return None
+
+        except socket.timeout:
+            print("No client connected")
+            self.lsock.close()
+            sys.exit()
 
         except KeyboardInterrupt:
-            conn.close()
-            lsock.close()
-            return True
+            print("Interrupted by user")
+            self.lsock.close()
+            sys.exit()
 
-        except EOFError:
-            lsock.close()
-            return True
+        print(['Connected via TCP to:', self.addr]);
 
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            conn.close()
-            lsock.close()
-            return False
+    def send(self, mess):
+        self.conn.send(mess)
+
+    def close(self):
+        print("Closing TCP Connexions")
+        self.conn.close()
+        self.lsock.close()
+
 
 def usage():
     print("Usage: python AISconverter.py [OPTION]... [FILE]...")
@@ -439,22 +414,30 @@ def usage():
     print("If no FILE is given then default is to read input text from STDIN.")
     return
 
-options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hd:p:s:ut', ['help','dest=','port=','sleep=','UDP','TCP'])
+rCode = True
+try:
+    options, remainder = getopt.gnu_getopt(sys.argv[1:], 'hd:p:s:ut', ['help','dest=','port=','sleep=','UDP','TCP'])
+    
+    for opt, arg in options:
+        if opt in ('-d', '--dest'):
+            dest = arg
+        elif opt in ('-p', '--port'):
+            port = Str2Int(arg,'')
+        elif opt in ('-s', '--sleep'):
+            td = Str2Float(arg,'')
+        elif opt in ('-u', '--UDP'):
+            mode = 'UDP'
+        elif opt in ('-t', '--TCP'):
+            mode = 'TCP'
+        elif opt in ('-h', '--help'):
+            usage()
+            sys.exit()
+except:
+    usage()
+    rCode = False
 
-for opt, arg in options:
-    if opt in ('-d', '--dest'):
-        dest = arg
-    elif opt in ('-p', '--port'):
-        port = Str2Int(arg,'')
-    elif opt in ('-s', '--sleep'):
-        td = Str2Float(arg,'')
-    elif opt in ('-u', '--UDP'):
-        mode = 'UDP'
-    elif opt in ('-t', '--TCP'):
-        mode = 'TCP'
-    elif opt in ('-h', '--help'):
-        usage()
-        sys.exit()
+if rCode == False:
+    sys.exit()
 
 #if remainder:
 #    file = open(remainder[0],'r')
@@ -479,10 +462,52 @@ for opt, arg in options:
 rCode = False
 
 if mode.upper() == "UDP":
-    rCode = udp(dest,port,td)
+    con = udp(dest,port)
 
 if mode.upper() == "TCP":
-    rCode = tcp(dest,port,td)
+    con = tcp(dest,port)
+    if con == None:
+         print("TCP connexion error")
+         sys.exit()
+
+targets = [ AISTarget("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
+            AISTarget("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
+print("Type Ctrl-C to exit...")
+
+try:
+    while True :
+        for t in targets:
+            mess = t.nmeaEncode()
+            print(mess.strip())
+            con.send(mess)
+            time.sleep(td)
+except KeyboardInterrupt:
+    con.close()
+    rCode = True
+
+#        try:
+#           if LineDict:
+#                mess = nmeaEncode(LineDict)
+#                print(mess)
+#                conn.send(mess)
+#                time.sleep(delay)
+#
+#        except KeyboardInterrupt:
+#            conn.close()
+#            lsock.close()
+#            return True
+#
+#        except EOFError:
+#            lsock.close()
+#            return True
+#
+#        except Exception as e:
+#            exc_type, exc_obj, exc_tb = sys.exc_info()
+#            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+#            print(exc_type, fname, exc_tb.tb_lineno)
+#            conn.close()
+#            lsock.close()
+#            return False
 
 if rCode == True:
     print("Exiting cleanly.")
