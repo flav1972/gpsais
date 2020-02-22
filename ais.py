@@ -36,6 +36,7 @@ import os
 import time
 import string
 import getopt
+from datetime import datetime
 from target import Target
 from target import to_angle
 
@@ -323,6 +324,10 @@ class AISTargetA(AISTarget):
 
     def nmeaEncode(self):
         self.update()
+        # format timestamp: "2015-11-19T05:19:47"
+        now = datetime.utcnow()
+        timestamp = now.strftime("%Y-%m-%dT%H%M%S")
+
         LineDict = { "TYPE":"1",
                      "MMSI":self.mmsi,
                      "STATUS":"0",
@@ -331,7 +336,7 @@ class AISTargetA(AISTarget):
                      "LAT": self.lat,
                      "COURSE": self.course,
                      "HEADING": self.heading,
-                     "TIMESTAMP":"2015-11-19T05:19:47" }
+                     "TIMESTAMP": timestamp }
         return nmeaEncode(LineDict)
 
 class AISTargetB(AISTarget):
