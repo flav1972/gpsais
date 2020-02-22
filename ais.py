@@ -200,21 +200,21 @@ def nmeaEncode(LineDict):
         Spare1 = Int2BString(0,8)
         Channel = LineDict["CHANNEL"]
 
-        sog = Str2Float(LineDict["SPEED"],Ignore)
+        sog = LineDict["SPEED"]*10.0
         SOG = Int2BString(sog,10)
 
         PosAccuracy = Int2BString(1,1)
 
-        lon = Str2Float(LineDict["LON"],Ignore)
+        lon = LineDict["LON"]
         Longitude = Int2BString(int(lon*600000),28)
 
-        lat = Str2Float(LineDict["LAT"],Ignore)
+        lat = LineDict["LAT"]
         Latitude = Int2BString(int(lat*600000),27)
 
-        cog = Str2Float(LineDict["COURSE"],Ignore)
+        cog = LineDict["COURSE"]
         COG = Int2BString(int(cog*10),12)
 
-        heading = Str2Int(LineDict["HEADING"],Ignore)
+        heading = LineDict["HEADING"]
         Heading = Int2BString(heading,9)
 
         tStamp = LineDict["TIMESTAMP"]
@@ -317,18 +317,42 @@ class AISTarget(Target):
         self.heading = heading
         Target.__init__(self, lat, lon, course, speed)
 
+class AISTargetA(AISTarget):
+    def __init__(self, mmsi, lat, lon, course, speed, heading):
+        AISTarget.__init__(self, mmsi, lat, lon, course, speed, heading)
+
     def nmeaEncode(self):
         self.update()
         LineDict = { "TYPE":"1",
-                         "MMSI":self.mmsi,
-                         "STATUS":"0",
-                         "SPEED": self.speed,
-                         "LON": self.lon,
-                         "LAT": self.lat,
-                         "COURSE": self.course,
-                         "HEADING": self.heading,
-                         "TIMESTAMP":"2015-11-19T05:19:47" }
+                     "MMSI":self.mmsi,
+                     "STATUS":"0",
+                     "SPEED": self.speed,
+                     "LON": self.lon,
+                     "LAT": self.lat,
+                     "COURSE": self.course,
+                     "HEADING": self.heading,
+                     "TIMESTAMP":"2015-11-19T05:19:47" }
         return nmeaEncode(LineDict)
+
+class AISTargetB(AISTarget):
+    def __init__(self, mmsi, lat, lon, course, speed, heading):
+        AISTarget.__init__(self, mmsi, lat, lon, course, speed, heading)
+
+    def nmeaEncode(self):
+        self.update()
+        # TYPE : "18" MMSI:"367415980" SPEED:"5" LON:"121.745400" LAT:"24.135000" COURSE:"113" HEADING:"30" CHANNEL:"B" TIMESTAMP:"2015-11-19T05:19:48"
+        LineDict = { "TYPE":"18",
+                     "MMSI":self.mmsi,
+                     "SPEED": self.speed,
+                     "LON": self.lon,
+                     "LAT": self.lat,
+                     "COURSE": self.course,
+                     "HEADING": self.heading,
+                     "CHANNEL": "B",
+                     "TIMESTAMP":"2015-11-19T05:19:47" }
+        return nmeaEncode(LineDict)
+
+
 
 class connection:
     def __init__(self, host, port):
@@ -470,8 +494,8 @@ if mode.upper() == "TCP":
          print("TCP connexion error")
          sys.exit()
 
-targets = [ AISTarget("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
-            AISTarget("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
+targets = [ AISTargetA("24416300", 48.135410, -005.500, 100.0, 11.0, 100.0),
+            AISTargetB("43331334", to_angle(48.0, 9.3), to_angle(-005.0, 13.9), 45.0, 5.0, 45.0) ]
 print("Type Ctrl-C to exit...")
 
 try:
