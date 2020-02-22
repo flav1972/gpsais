@@ -38,7 +38,7 @@ true_course = "{:.1f}".format(course)
 
 while True:
   #timestamp = '184353.07' # hhmmss.ss UTC
-  now = datetime.now()
+  now = datetime.utcnow()
   timestamp = now.strftime("%H%M%S.00")
   #date = '150220' # ddmmyy
   date = now.strftime("%d%m%y")
