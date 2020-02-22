@@ -340,12 +340,41 @@ class AISTargetA(AISTarget):
         return nmeaEncode(LineDict)
 
 class AISTargetB(AISTarget):
-    def __init__(self, mmsi, lat, lon, course, speed, heading):
+    def __init__(self, mmsi, lat, lon, course, speed, heading, ship_name = None, call_sign = None):
         AISTarget.__init__(self, mmsi, lat, lon, course, speed, heading)
+        self.ship_name = ship_name
+        self.call_sign = call_sign
+
+    def report(self):
+        # https://www.navcen.uscg.gov/?pageName=AISMessagesB
+        # message part A (0) must be sent each 6 minutes, alternate channel
+        # TYPE="24" MMSI="367415980" PART_NO="0" CHANNEL="A" SHIP_NAME="WHISPER"
+        # message part B (1) must be sent within 1 min from part A
+        # TYPE="24" MMSI="367415980" PART_NO="1" CHANNEL="B" SHIP_TYPE="8" CALL_SIGN="WDE9319"
+
+        if self.ship_name == None or self.call_sign == None:
+            return
+
+        LineDict = { "TYPE":"24",
+                     "MMSI":self.mmsi,
+                     "PART_NO": "0",
+                     "CHANNEL": "A",
+                     "SHIP_NAME": self.ship_name }
+        nmeaEncode(LineDict)
+        LineDict = { "TYPE":"24",
+                     "MMSI":self.mmsi,
+                     "PART_NO": "1",
+                     "CHANNEL": "B",
+                     "SHIP_NAME": self.call_sign }
+        nmeaEncode(LineDict)
+
 
     def nmeaEncode(self):
         self.update()
-        # TYPE : "18" MMSI:"367415980" SPEED:"5" LON:"121.745400" LAT:"24.135000" COURSE:"113" HEADING:"30" CHANNEL:"B" TIMESTAMP:"2015-11-19T05:19:48"
+        # format timestamp: "2015-11-19T05:19:47"
+        now = datetime.utcnow()
+        timestamp = now.strftime("%Y-%m-%dT%H%M%S")
+
         LineDict = { "TYPE":"18",
                      "MMSI":self.mmsi,
                      "SPEED": self.speed,
@@ -354,10 +383,8 @@ class AISTargetB(AISTarget):
                      "COURSE": self.course,
                      "HEADING": self.heading,
                      "CHANNEL": "B",
-                     "TIMESTAMP":"2015-11-19T05:19:47" }
+                     "TIMESTAMP": timestamp }
         return nmeaEncode(LineDict)
-
-
 
 class connection:
     def __init__(self, host, port):
