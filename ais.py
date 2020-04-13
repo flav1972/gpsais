@@ -30,6 +30,9 @@
 #           UDP means make a UDP connection to the client (TCP is also supported)
 #   If a data file name is not provided then it will read from STDIN (or a pipe).
 
+# AIS official spec: https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en
+# AIS simplified spec : https://www.navcen.uscg.gov/?pageName=AISMessages
+
 import socket
 import sys
 import os
